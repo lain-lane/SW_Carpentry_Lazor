@@ -69,13 +69,19 @@ def read_bff(bff):
     return(rows,(num_A,num_B,num_C),lasers,points)
 
 def grid_reader(rows):
-    '''interpret rows list into grid as a numpy array'''
+    '''interpret rows list into xy grid as a numpy array'''
     y_dim=len(rows)
     x_dim=len(rows[0].split(' '))
-    return np.zeros((x_dim,y_dim))
+    grid=np.zeros((2*x_dim+1,2*y_dim+1),dtype=str)
+    # 2*length+1 to get the full size of grid including even spaces
+    for j in range(y_dim):
+        for i in range(x_dim):
+            grid[2*i+1,2*j+1]=rows[j].split(' ')[i]
+    return grid
+
 
 if __name__=="__main__":
-    rows,blocks,lasers,points=read_bff('bff_files/yarn_5.bff')
+    rows,blocks,lasers,points=read_bff('bff_files/tiny_5.bff')
     print(rows)
     print(blocks)
     print(lasers)
@@ -83,3 +89,4 @@ if __name__=="__main__":
 
     grid=grid_reader(rows)
     print(grid)
+
