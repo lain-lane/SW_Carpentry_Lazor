@@ -109,27 +109,6 @@ def pos_check(point,grid):
     else:
         return True
 
-# def get_adj_blocks(point,grid):
-#     '''list of adjacent blocks within the grid from a point
-#     *** Args
-#         point: tuple, int
-#             xy coords
-#         grid: np array
-#             generated from grid_reader 
-#     *** Returns
-#         neighbors: list, tuple, int
-#             list of points above below, left, and right 
-#         '''
-#     x,y = point[0],point[1]
-#     neighbors=[]
-#     for i in [x-1,x+1]:
-#         if pos_check((i,y),grid)==True:
-#             neighbors.append((i,y))
-#     for j in [y-1,y+1]:
-#         if pos_check((x,j),grid)==True:
-#             neighbors.append((x,j))    
-#     return neighbors
-
 
 def run_laser(laser,grid):
     '''runs laser from starting point with trajectory until it leaves the board
@@ -220,14 +199,12 @@ def game_plotter(laser_traj,grid,points):
     for i in range(x_dim):
         for j in range(y_dim):
             if grid[i,j]=='A':
-                plt.scatter(i,j,s=3000,c='b',marker='s')
+                plt.scatter(i,j,s=1000,c='b',marker='s')
             elif grid[i,j]=='B':
-                plt.scatter(i,j,s=3000,c='k',marker='s')
+                plt.scatter(i,j,s=1000,c='k',marker='s')
             elif grid[i,j]=='C':
-                plt.scatter(i,j,s=3000,c='y',marker='s')
+                plt.scatter(i,j,s=1000,c='y',marker='s')
     for point in points:
-        print(point)
-        print(laser_traj)
         if point in laser_traj:
             plt.scatter(point[0],point[1],c='r',marker='x')
         else:
@@ -245,7 +222,7 @@ def game_plotter(laser_traj,grid,points):
     plt.show()
 
 if __name__=="__main__":
-    rows,blocks,lasers,points=read_bff('bff_files/tiny_5.bff')
+    rows,blocks,lasers,points=read_bff('bff_files/yarn_5.bff')
     # print(rows)
     # print(blocks)
     # print(lasers)
@@ -253,7 +230,7 @@ if __name__=="__main__":
 
     grid=grid_reader(rows)
 
-    grid[1,3]='C'
+    # grid[1,3]='C'
     traj=run_laser(lasers[0],grid)
 
     game_plotter(traj,grid,points)
