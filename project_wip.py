@@ -109,7 +109,16 @@ def pos_check(point,grid):
         return True
 
 def get_adj_blocks(point,grid):
-    ''' list of adjacent blocks from point of laser'''
+    '''list of adjacent blocks within the grid from a point
+    *** Args
+        point: tuple, int
+            xy coords
+        grid: np array
+            generated from grid_reader 
+    *** Returns
+        neighbors: list, tuple, int
+            list of points above below, left, and right 
+        '''
     x,y = point[0],point[1]
     neighbors=[]
     for i in [x-1,x+1]:
@@ -140,14 +149,29 @@ def run_laser(laser,grid):
     while pos_check(laser_traj[0],grid)==True and absorbed==False:
         ### conditionals go here for block behaviors
 
-        # this will stop the laser from running if it hits an opaque block from any direction
+        ### OPAQUE BLOCK 
+        # the absorbed tag will stop the run if it hits a B from any direction
         for block in get_adj_blocks((x,y),grid):
             if grid[block[0],block[1]]=='B':
                 absorbed=True
 
-        ### for the other blocks the behavior will depend on which direction it gets hit from
-        ### e.g. if a reflect block is above or below then vy changes
-        ### if a reflect block is right or left then vx changes
+        ### REFLECT BLOCK
+        # if it hits from above or below the y dir flips
+        if pos_check((x,y+1),grid)==True:
+            if grid[x,y+1]=='A':
+                vy=-vy
+        if pos_check((x,y-1),grid)==True:
+            if grid[x,y-1]=='A':
+                vy=-vy
+        # if it hits from left or right the x dir flips
+        if pos_check((x+1,y),grid)==True:
+            if grid[x+1,y]=='A':
+                vx=-vx
+        if pos_check((x-1,y),grid)==True:
+            if grid[x-1,y]=='A':
+                vx=-vx 
+
+
         ### for the refract block will have to start a new instance of run_laser()
         
         laser_traj.insert(0,(x+vx,y+vy))
@@ -165,7 +189,9 @@ if __name__=="__main__":
 
     grid=grid_reader(rows)
 
+    print(run_laser(lasers[0],grid))
 
+    grid[1,3]='A'
     print(run_laser(lasers[0],grid))
 
 
