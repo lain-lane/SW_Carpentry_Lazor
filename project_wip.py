@@ -107,7 +107,20 @@ def pos_check(point,grid):
         return False
     else:
         return True
-    
+
+def get_adj_blocks(point,grid):
+    ''' list of adjacent blocks from point of laser'''
+    x,y = point[0],point[1]
+    neighbors=[]
+    for i in [x-1,x+1]:
+        if pos_check((i,y),grid)==True:
+            neighbors.append((i,y))
+    for j in [y-1,y+1]:
+        if pos_check((x,j),grid)==True:
+            neighbors.append((x,j))    
+    return neighbors
+
+
 def run_laser(laser,grid):
     '''runs laser from starting point with trajectory until it leaves the board
     *** Args
@@ -117,25 +130,41 @@ def run_laser(laser,grid):
         grid: np array
     '''
     laser_traj=[laser[0]]
+    # grab starting point from laser tuple
     x,y=laser_traj[0][0],laser_traj[0][1]
     vx,vy=laser[1][0],laser[1][1]
+    absorbed=False
 
-    # put conditionals here to check for the different block types
-    while pos_check(laser_traj[0],grid)==True:
+    # update new position to the start of the trajectory list
+    # run as long as new position is within the grid
+    while pos_check(laser_traj[0],grid)==True and absorbed==False:
+        ### conditionals go here for block behaviors
+
+        # this will stop the laser from running if it hits an opaque block from any direction
+        for block in get_adj_blocks((x,y),grid):
+            if grid[block[0],block[1]]=='B':
+                absorbed=True
+
+        ### for the other blocks the behavior will depend on which direction it gets hit from
+        ### e.g. if a reflect block is above or below then vy changes
+        ### if a reflect block is right or left then vx changes
+        ### for the refract block will have to start a new instance of run_laser()
+        
         laser_traj.insert(0,(x+vx,y+vy))
         x,y=laser_traj[0][0],laser_traj[0][1]
-        print(laser_traj[0])
+    # have to delete the last new point that broke out of the grid and killed the while loop
+    del laser_traj[0]
     return(laser_traj)
 
 if __name__=="__main__":
     rows,blocks,lasers,points=read_bff('bff_files/tiny_5.bff')
     # print(rows)
     # print(blocks)
-    print(lasers)
+    # print(lasers)
     # print(points)
 
     grid=grid_reader(rows)
-    # print(grid)
+
 
     print(run_laser(lasers[0],grid))
 
