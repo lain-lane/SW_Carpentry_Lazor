@@ -1,4 +1,5 @@
 import numpy as np 
+import matplotlib.pyplot as plt
 
 def read_bff(bff):
     ''' 
@@ -108,26 +109,26 @@ def pos_check(point,grid):
     else:
         return True
 
-def get_adj_blocks(point,grid):
-    '''list of adjacent blocks within the grid from a point
-    *** Args
-        point: tuple, int
-            xy coords
-        grid: np array
-            generated from grid_reader 
-    *** Returns
-        neighbors: list, tuple, int
-            list of points above below, left, and right 
-        '''
-    x,y = point[0],point[1]
-    neighbors=[]
-    for i in [x-1,x+1]:
-        if pos_check((i,y),grid)==True:
-            neighbors.append((i,y))
-    for j in [y-1,y+1]:
-        if pos_check((x,j),grid)==True:
-            neighbors.append((x,j))    
-    return neighbors
+# def get_adj_blocks(point,grid):
+#     '''list of adjacent blocks within the grid from a point
+#     *** Args
+#         point: tuple, int
+#             xy coords
+#         grid: np array
+#             generated from grid_reader 
+#     *** Returns
+#         neighbors: list, tuple, int
+#             list of points above below, left, and right 
+#         '''
+#     x,y = point[0],point[1]
+#     neighbors=[]
+#     for i in [x-1,x+1]:
+#         if pos_check((i,y),grid)==True:
+#             neighbors.append((i,y))
+#     for j in [y-1,y+1]:
+#         if pos_check((x,j),grid)==True:
+#             neighbors.append((x,j))    
+#     return neighbors
 
 
 def run_laser(laser,grid):
@@ -135,50 +136,113 @@ def run_laser(laser,grid):
     *** Args
         laser: tuple, tuple, int
             laser as a tuple of starting coords (x,y) and trajectory (vx,vy)
-            when you get lasers from the read_bff
         grid: np array
+    *** Returns
+        laser_traj: list, tuple, int
+            list of laser positions in reverse
     '''
     laser_traj=[laser[0]]
+    refract_traj=[]
     # grab starting point from laser tuple
     x,y=laser_traj[0][0],laser_traj[0][1]
     vx,vy=laser[1][0],laser[1][1]
     absorbed=False
 
-    # update new position to the start of the trajectory list
+    # update new positions to the start of the trajectory list
     # run as long as new position is within the grid
     while pos_check(laser_traj[0],grid)==True and absorbed==False:
-        ### conditionals go here for block behaviors
-
-        ### OPAQUE BLOCK 
-        # the absorbed tag will stop the run if it hits a B from any direction
-        for block in get_adj_blocks((x,y),grid):
-            if grid[block[0],block[1]]=='B':
-                absorbed=True
-
-        ### REFLECT BLOCK
+        
+        ### BLOCK CONDITIONALS
         # if it hits from above or below the y dir flips
         if pos_check((x,y+1),grid)==True:
             if grid[x,y+1]=='A':
                 vy=-vy
+            elif grid[x,y+1]=='B': # opaque
+                absorbed=True # this tag makes it so that the while loop closes
+            elif grid[x,y+1]=='C':
+                refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
+                # start a new laser with the same direction to pass through
+                # have to advance the step by two so that it doesn't intersect the same block again
+                # add those points to the end so it doesn't mess up the queue
+                vy=-vy
         if pos_check((x,y-1),grid)==True:
             if grid[x,y-1]=='A':
+                vy=-vy
+            elif grid[x,y-1]=='B':
+                absorbed=True
+            elif grid[x,y-1]=='C':
+                refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
                 vy=-vy
         # if it hits from left or right the x dir flips
         if pos_check((x+1,y),grid)==True:
             if grid[x+1,y]=='A':
                 vx=-vx
+            elif grid[x+1,y]=='B':
+                absorbed=True
+            elif grid[x+1,y]=='C':
+                refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
+                vx=-vx
         if pos_check((x-1,y),grid)==True:
             if grid[x-1,y]=='A':
                 vx=-vx 
+            elif grid[x-1,y]=='B':
+                absorbed=True
+            elif grid[x-1,y]=='C':
+                refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
+                # have to start the new laser from 2 steps forward so it doesn't interact with C again
+                # but then we lose that point in the trajectory so I'm gonna put it back at the end
+                refract_traj.append((x+vx,y+vy))
+                vx=-vx
 
-
-        ### for the refract block will have to start a new instance of run_laser()
         
         laser_traj.insert(0,(x+vx,y+vy))
         x,y=laser_traj[0][0],laser_traj[0][1]
-    # have to delete the last new point that broke out of the grid and killed the while loop
+
+    # have to delete the last new point that broke the loop
     del laser_traj[0]
+    for point in refract_traj:
+        laser_traj.append(point)
     return(laser_traj)
+
+def game_plotter(laser_traj,grid,points):
+    ''' uses matplotlib to visualize game board
+        blocks are represented with squares:
+            blue = A (reflect)
+            black = B (opaque)
+            yellow = C (refract)
+        laser is represented with red points
+        target points are represented with X's
+            black if not hit
+            red if hit'''
+    
+    x_dim,y_dim = np.shape(grid)[0], np.shape(grid)[1]
+
+    for i in range(x_dim):
+        for j in range(y_dim):
+            if grid[i,j]=='A':
+                plt.scatter(i,j,s=3000,c='b',marker='s')
+            elif grid[i,j]=='B':
+                plt.scatter(i,j,s=3000,c='k',marker='s')
+            elif grid[i,j]=='C':
+                plt.scatter(i,j,s=3000,c='y',marker='s')
+    for point in points:
+        print(point)
+        print(laser_traj)
+        if point in laser_traj:
+            plt.scatter(point[0],point[1],c='r',marker='x')
+        else:
+            plt.scatter(point[0],point[1],c='k',marker='x')
+    las_x,las_y=[],[]
+    for point in laser_traj:
+        las_x.append(point[0])
+        las_y.append(point[1])
+    plt.scatter(las_x,las_y,c='r',marker='.')
+
+    plt.gca().set_xlim([0,x_dim-1])
+    plt.gca().set_ylim([0,y_dim-1])
+    plt.gca().invert_yaxis()
+
+    plt.show()
 
 if __name__=="__main__":
     rows,blocks,lasers,points=read_bff('bff_files/tiny_5.bff')
@@ -189,9 +253,11 @@ if __name__=="__main__":
 
     grid=grid_reader(rows)
 
-    print(run_laser(lasers[0],grid))
+    grid[1,3]='C'
+    traj=run_laser(lasers[0],grid)
 
-    grid[1,3]='A'
-    print(run_laser(lasers[0],grid))
+    game_plotter(traj,grid,points)
+
+
 
 
