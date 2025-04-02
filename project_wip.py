@@ -183,6 +183,20 @@ def run_laser(laser,grid):
         laser_traj.append(point)
     return(laser_traj)
 
+def get_open(grid):
+    ''' gets list of spaces in a grid where a block can be placed
+    ***Args
+        grid: np array
+    ***Returns
+        open_spaces: list, tuple, int'''
+    open_spaces=[]
+    x_dim,y_dim = np.shape(grid)[0], np.shape(grid)[1]
+    for i in range(x_dim):
+        for j in range(y_dim):
+            if grid[i,j]=='o':
+                open_spaces.append((i,j))
+    return open_spaces
+
 def game_plotter(laser_traj,grid,points):
     ''' uses matplotlib to visualize game board
         blocks are represented with squares:
@@ -192,7 +206,13 @@ def game_plotter(laser_traj,grid,points):
         laser is represented with red points
         target points are represented with X's
             black if not hit
-            red if hit'''
+            red if hit
+        *** Args
+            laser_traj: list, tuple, int
+                list of laser positions in reverse
+            grid: np array
+            points: list, tuple, int
+                list of target coords '''
     
     x_dim,y_dim = np.shape(grid)[0], np.shape(grid)[1]
 
@@ -222,7 +242,7 @@ def game_plotter(laser_traj,grid,points):
     plt.show()
 
 if __name__=="__main__":
-    rows,blocks,lasers,points=read_bff('bff_files/yarn_5.bff')
+    rows,blocks,lasers,points=read_bff('bff_files/tiny_5.bff')
     # print(rows)
     # print(blocks)
     # print(lasers)
@@ -230,10 +250,13 @@ if __name__=="__main__":
 
     grid=grid_reader(rows)
 
-    # grid[1,3]='C'
+    grid[1,3]='C'
     traj=run_laser(lasers[0],grid)
 
-    game_plotter(traj,grid,points)
+    # game_plotter(traj,grid,points)
+    
+    print(grid)
+    print(get_open(grid))
 
 
 
