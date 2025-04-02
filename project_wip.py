@@ -197,6 +197,92 @@ def get_open(grid):
                 open_spaces.append((i,j))
     return open_spaces
 
+def get_configs(grid,blocks):
+    # this isn't right at all
+    grid_orig=grid
+    blocks_list=blocks
+    configs=[]
+    def block_placer(grid,blocks):
+        while blocks!=[]:
+            for space in get_open(grid):
+                grid[space[0],space[1]]=blocks[0]
+                configs.append(grid)
+            blocks.pop(0)
+    return
+
+def get_block_list(blocks):
+    num_A, num_B, num_C = blocks[0],blocks[1],blocks[2]
+    block_list=[]
+    for i in range(num_A):
+        block_list.append('A')
+    for i in range(num_B):
+        block_list.append('B')
+    for i in range(num_C):
+        block_list.append('C')
+    return block_list
+
+def get_configs_tiny_5_debug(grid,block_list):
+    # gonna write a script to solve one puzzle in particular to help understand the problem in general
+    configs=[]
+    grid_place=grid
+    print(get_open(grid))
+    for space_0 in get_open(grid_place):
+        grid_place[space_0[0],space_0[1]]=block_list[0]
+        # print('0')
+        for space_1 in get_open(grid_place):
+            grid_place[space_1[0],space_1[1]]=block_list[1]
+            # print('1')
+            for space_2 in get_open(grid_place):
+                grid_place[space_2[0],space_2[1]]=block_list[2]
+                # print('2')
+                for space_3 in get_open(grid_place):
+                    grid_place[space_3[0],space_3[1]]=block_list[3]    
+                    print(grid_place)
+                    ### DON'T KNOW WHY THIS ISN'T WORKING
+                    ### EACH GRID PRINTS OUT PERFECT BUT IT WON'T SAVE TO THE LIST???
+                    ### WHY!!!!!!!
+                    configs.append(grid_place)
+                    grid_place[space_3[0],space_3[1]]='o'
+                grid_place[space_2[0],space_2[1]]='o'
+            grid_place[space_1[0],space_1[1]]='o'
+        grid_place[space_0[0],space_0[1]]='o'
+    
+    configs_stripped=[]
+    for config in configs:
+        # print(config)
+        if config not in configs_stripped:
+            configs_stripped.append(config)
+            # print(configs_stripped)
+    return configs_stripped
+
+def get_configs_tiny_5(grid,block_list):
+    # gonna write a script to solve one puzzle in particular to help understand the problem in general
+    configs=[]
+    print(get_open(grid))
+    for space in get_open(grid):
+        grid[space[0],space[1]]=block_list[0]
+        for space in get_open(grid):
+            grid[space[0],space[1]]=block_list[1]
+            for space in get_open(grid):
+                grid[space[0],space[1]]=block_list[2]
+                for space in get_open(grid):
+                    grid[space[0],space[1]]=block_list[3]    
+                    configs.append(grid)
+                    grid[space[0],space[1]]='o'
+                grid[space[0],space[1]]='o'
+            grid[space[0],space[1]]='o'
+        grid[space[0],space[1]]='o'
+    
+    configs_stripped=[]
+    for config in configs:
+        if config not in configs_stripped:
+            configs_stripped.append(config)
+    return configs_stripped
+
+def game_solver_tiny_5(grid,blocks,lasers,points):
+    configs=get_configs_tiny_5(grid,blocks)
+    return
+
 def game_plotter(laser_traj,grid,points):
     ''' uses matplotlib to visualize game board
         blocks are represented with squares:
@@ -249,14 +335,20 @@ if __name__=="__main__":
     # print(points)
 
     grid=grid_reader(rows)
-
-    grid[1,3]='C'
+    print('Original grid')
+    print(grid)
     traj=run_laser(lasers[0],grid)
 
     # game_plotter(traj,grid,points)
     
-    print(grid)
-    print(get_open(grid))
+    # print(grid)
+    # print(get_open(grid))
+    
+    # print(get_configs_tiny_5_debug(grid,get_block_list(blocks)))
+    print(get_configs_tiny_5_debug(grid,get_block_list(blocks)))
+    
+    
+    
 
 
 
