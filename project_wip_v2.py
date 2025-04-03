@@ -109,9 +109,9 @@ def pos_check(point,grid):
             True if point is within the grid, else False
             '''
     x_dim,y_dim = np.shape(grid)[0], np.shape(grid)[1]
-    if point[0]<0 or point[0]>x_dim-1:
+    if point[1]<0 or point[1]>x_dim-1:
         return False
-    elif point[1]<0 or point[1]>y_dim-1:
+    elif point[0]<0 or point[0]>y_dim-1:
         return False
     else:
         return True
@@ -339,7 +339,8 @@ def get_open(grid):
     ***Args
         grid: np array
     ***Returns
-        open_spaces: list, tuple, int'''
+        open_spaces: list, tuple, int
+            IMPORTANT: returns coords as yx in same order as numpy indexing'''
     open_spaces=[]
     x_dim,y_dim = np.shape(grid)[0], np.shape(grid)[1]
     for i in range(x_dim):
@@ -348,83 +349,54 @@ def get_open(grid):
                 open_spaces.append((i,j))
     return open_spaces
 
-def get_configs_wip(grid,blocks):
-    ### this needs to be done with some kind of recursion iterating through the blocks_list 
-    ### (see how it works for tiny_5)
+def get_configs(grid,blocks):
 
-    ######## THIS IS BROKEN RN
-    ####### i think that the problem has to do with the 'space' variable being the same every time it is called
-    ###### when i was coding for tiny_5 i had to change the name of the variable in each loop to make it work
+    ###### THIS WORKS FOR TINY_5 AND SHOWSTOPPER_4
+    ###### HAVEN'T TRIED ON OTHERS
+    print('getting configs')
     configs=[]
     
     if len(blocks)>len(get_open(grid)):
         ### put some raise error here for too many blocks
         return
-
+    
     def config_iteration(grid,iter):
         if iter==len(blocks)-1: # this makes it so that we only save the configurations in the last iteration
-            for space in get_open(grid):
-                grid[space[0],[1]]=blocks[iter] # place the block in an open space
-                print(grid)
+            opens=get_open(grid)
+            for i in range(len(opens)):
+                space=opens[i]
+                grid[space[0],space[1]]=blocks[iter] # place the block in an open space
                 grid_list=grid.tolist() # convert to list to avoid problems with np datatypes
                 configs.append(grid_list) # save that placement to the list of possible configurations
-                grid[space[0],[1]]=='o' # remove the block so it can be placed in the next open space
+                print(len(configs))
+                grid[space[0],space[1]]='o' # remove the block so it can be placed in the next open space
             return
         else:
-            for space in get_open(grid):
-                grid[space[0],[1]]=blocks[iter]
+            opens=get_open(grid)
+            for i in range(len(opens)):
+                space=opens[i]
+                grid[space[0],space[1]]=blocks[iter]
                 config_iteration(grid,iter+1)
-                grid[space[0],[1]]=='o'
+                grid[space[0],space[1]]='o'
 
     config_iteration(grid,0)
 
+    ### maybe this can be sped up by checking it within the iteration so it has fewer to compare it to 
+    ### because this is taking way too long to run
     configs_stripped=[]
     for config in configs:
+        print('stripping')
+        print(len(configs_stripped))
         if config not in configs_stripped:
             configs_stripped.append(config)
     return configs_stripped
 
-
-
-
-def get_configs_tiny_5_debug(grid,block_list):
-    # gonna write a script to solve one puzzle in particular to help understand the problem in general
-    # i think this is working now but it returns a list of nested lists instead of numpy arrays
-    # so i'll need to convert back to array before feeding it to run laser
-    configs=[]
-    grid_place=grid
-    for space_0 in get_open(grid_place):
-        grid_place[space_0[0],space_0[1]]=block_list[0]
-        # print('0')
-        for space_1 in get_open(grid_place):
-            grid_place[space_1[0],space_1[1]]=block_list[1]
-            # print('1')
-            for space_2 in get_open(grid_place):
-                grid_place[space_2[0],space_2[1]]=block_list[2]
-                # print('2')
-                for space_3 in get_open(grid_place):
-                    grid_place[space_3[0],space_3[1]]=block_list[3]    
-                    grid_list=grid_place.tolist() # this line saved us i think
-                    configs.append(grid_list)
-                    grid_place[space_3[0],space_3[1]]='o'
-                grid_place[space_2[0],space_2[1]]='o'
-            grid_place[space_1[0],space_1[1]]='o'
-        grid_place[space_0[0],space_0[1]]='o'
-    
-    configs_stripped=[]
-    for config in configs:
-        # print(config)
-        if config not in configs_stripped:
-            configs_stripped.append(config)
-            # print(configs_stripped)
-    return configs_stripped
 
 def get_configs_tiny_5(grid,block_list):
     # gonna write a script to solve one puzzle in particular to help understand the problem in general
     # returns a list of nested lists because the numpy dtype was giving us trouble
     # so i'll need to convert back to array before feeding it to run laser
     configs=[]
-    print(get_open(grid))
     for space_0 in get_open(grid):
         grid[space_0[0],space_0[1]]=block_list[0]
         for space_1 in get_open(grid):
@@ -446,18 +418,23 @@ def get_configs_tiny_5(grid,block_list):
             configs_stripped.append(config)
     return configs_stripped
 
-def game_solver_tiny_5(grid,block_list,lasers,points):
+def game_solver(grid,block_list,lasers,points):
+    ### CORRECTLY SOLVES TINY-5 AND SHOWSTOPPER-4
+    ### FAILED ON DARK-1
+    
     ''' finds configuration which hits all target points
     ***Args: all are outputs from the bff reader function
         grid: np array
         block_list: list, str
         lasers: list, tuple, tuple, int
         points: list, tuple, int'''
-    configs=get_configs_tiny_5_debug(grid,block_list) # use function to get possible configs
+    
+    configs=get_configs(grid,block_list) # use function to get possible configs
     counter=0
     solved_grid=np.zeros(np.shape(grid)) # initialize
     # we will iterate through the different configs and save the one that works
     for config in configs:
+        print('solving')
         print(counter)
         counter+=1
         config_grid=np.array(config) # remember that the configs returns a list of lists, we need to get back to np array
@@ -473,11 +450,11 @@ def game_solver_tiny_5(grid,block_list,lasers,points):
                 target_num+=1 # increase the number for each point that gets hit
                 # could try to redo this with the all function but right now it's working so let's just be happy about that
         if target_num==len(points): # if we hit all the points we save the solved grid and break the loop
+            print('Solved!')
             solved_grid=config_grid
-            break
-    if solved_grid.all()==np.zeros(np.shape(grid)).all():
-        print('Solver failed! :(')
-    return solved_grid, lasers_trajs
+            return solved_grid, lasers_trajs
+    print('Solver failed')
+    return 
 
 def game_plotter(laser_traj,grid,points):
     ''' uses matplotlib to visualize game board
@@ -524,22 +501,14 @@ def game_plotter(laser_traj,grid,points):
     plt.show()
 
 if __name__=="__main__":
-    grid,blocks_list,lasers,points=read_bff('bff_files/tiny_5.bff')
-
-    print(grid)
+    grid,blocks,lasers,points=read_bff('bff_files/numbered_6.bff')
     
-    # solution,trajs=game_solver_tiny_5(grid,blocks_list,lasers,points)
-    # print(solution)
-    # game_plotter(trajs,solution,points)
+    solution,trajs=game_solver(grid,blocks,lasers,points)
+    print(solution)
+    game_plotter(trajs,solution,points)
 
-    configs_looped=get_configs_tiny_5_debug(grid,blocks_list)
-    configs_iter=get_configs_wip(grid,blocks_list)
-    print(len(configs_looped))
-    print(len(configs_iter))
 
-    for config in configs_iter:
-        print(np.array(config))
-   
+
     
 
     
