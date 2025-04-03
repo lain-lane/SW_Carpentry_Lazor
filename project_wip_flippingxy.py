@@ -118,79 +118,6 @@ def pos_check(point,grid):
 
 
 def run_laser(laser,grid):
-    '''runs laser from starting point with trajectory until it leaves the board
-    *** Args
-        laser: tuple, tuple, int
-            laser as a tuple of starting coords (x,y) and trajectory (vx,vy)
-        grid: np array
-    *** Returns
-        laser_traj: list, tuple, int
-            list of laser positions in reverse
-    '''
-    laser_traj=[laser[0]]
-    refract_traj=[]
-    # grab starting point from laser tuple
-    x,y=laser_traj[0][0],laser_traj[0][1]
-    vx,vy=laser[1][0],laser[1][1]
-    absorbed=False
-
-    # update new positions to the start of the trajectory list
-    # run as long as new position is within the grid
-    while pos_check(laser_traj[0],grid)==True and absorbed==False:
-        
-        ### BLOCK CONDITIONALS
-        # if it hits from above or below the y dir flips
-        if pos_check((x,y+1),grid)==True:
-            if grid[y+1,x]=='A':
-                vy=-vy
-            elif grid[y+1,x]=='B': # opaque
-                absorbed=True # this tag makes it so that the while loop closes
-            elif grid[y+1,x]=='C':
-                refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
-                # start a new laser with the same direction to pass through
-                # have to advance the step by two so that it doesn't intersect the same block again
-                # add those points to the end so it doesn't mess up the queue
-                vy=-vy
-        if pos_check((x,y-1),grid)==True:
-            if grid[y-1,x]=='A':
-                vy=-vy
-            elif grid[y-1,x]=='B':
-                absorbed=True
-            elif grid[y-1,x]=='C':
-                refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
-                vy=-vy
-        # if it hits from left or right the x dir flips
-        if pos_check((x+1,y),grid)==True:
-            if grid[x,y+1]=='A':
-                vx=-vx
-            elif grid[x,y+1]=='B':
-                absorbed=True
-            elif grid[x,y+1]=='C':
-                refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
-                vx=-vx
-        if pos_check((x-1,y),grid)==True:
-            if grid[y,x-1]=='A':
-                vx=-vx 
-            elif grid[y,x-1]=='B':
-                absorbed=True
-            elif grid[y,x-1]=='C':
-                refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
-                # have to start the new laser from 2 steps forward so it doesn't interact with C again
-                # but then we lose that point in the trajectory so I'm gonna put it back at the end
-                refract_traj.append((x+vx,y+vy))
-                vx=-vx
-
-        
-        laser_traj.insert(0,(x+vx,y+vy))
-        x,y=laser_traj[0][0],laser_traj[0][1]
-
-    # have to delete the last new point that broke the loop
-    del laser_traj[0]
-    for point in refract_traj:
-        laser_traj.append(point)
-    return(laser_traj)
-
-def run_laser_debug(laser,grid):
     ### the problem is that it's detecting blocks next to the starting position before the laser moves
     ### when it should only be detecting when it's a "hit" from the trajectory
     ### maybe I can write special logic for the first interaction and then this code should work for the rest
@@ -209,16 +136,20 @@ def run_laser_debug(laser,grid):
     
     x_dim,y_dim = np.shape(grid)[0], np.shape(grid)[1]
     limiter=(x_dim*y_dim)**2
-    blocknames=['A','B','C']
+    # using this limiter so that the while loop can close if there's an infinite reflection
 
+    # grab initial positions and velocities from the laser input
     x1,y1=laser[0][0],laser[0][1]
     vx,vy=laser[1][0],laser[1][1]
+    # first point of the trajectory
     laser_traj=[laser[0]]
 
-    absorbed=False
+    # initializing
+    absorbed=False 
     refract_traj=[]
-    
     neighbors=[]
+    
+    # gathering list of blocks adjacent to the start of the laser
     for coords in [[y1,x1-1],[y1,x1+1],[y1-1,x1],[y1+1,x1]]:
         try:
             dummy=grid[coords[0],coords[1]]
@@ -226,42 +157,42 @@ def run_laser_debug(laser,grid):
         except IndexError:
             pass
         
-    # if grid[y1,x1-1] in blocknames or grid[y1,x1+1] in blocknames or grid[y1-1,x1] in blocknames or grid[y1+1,x1] in blocknames:
-    if any(grid[coord[0],coord[1]] in blocknames for coord in neighbors)==True:
+    ### special cases for the start of the laser
+    blocknames=['A','B','C']
+    if any(grid[coord[0],coord[1]] in blocknames for coord in neighbors)==True: # if laser origin has an adjacent block
         if y1 % 2 ==0: # if the laser can start with a block above or below it
             ### SANDWICH CONDITIONS
             if pos_check((x1,y1+1),grid)==True and pos_check((x1,y1-1),grid)==True:
                 if grid[y1+1,x1]=='A' and grid[y1-1,x1]=='A':
-                    return laser_traj
+                    return laser_traj 
+                    # if it's stuck between two reflect blocks it can't go anywhere, return the original position
                 elif grid[y1+1,x1]=='B' or grid[y1-1,x1]=='B':
-                    absorbed=True
+                    absorbed=True 
+                    # if it's stuck between two opaque blocks it gets absorbed
                     return laser_traj
                 elif grid[y1+1,x1]=='C' and grid[y1-1,x1]=='C':
-                    traj_pos=run_laser_debug(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
+                    # if it's between two refract blocks then we will propagate two new lasers in the positive and negative dir
+                    traj_pos=run_laser(((x1+2*vx,y1+2*vy),(vx,vy)),grid) # skipping two spaces so it doesn't get stuck on the same block
                     traj_pos.append((x1+vx,y1+vy)) # adding this block back in manually so it doesn't interact
-                    traj_neg=run_laser_debug(((x1+2*vx,y1-2*vy),(vx,-vy)),grid)
+                    traj_neg=run_laser(((x1+2*vx,y1-2*vy),(vx,-vy)),grid) # skipping two spaces so it doesn't get stuck on the same block
                     traj_neg.append((x1+vx,y1-vy)) # adding this block back in manually so it doesn't interact
                     for point_pos in traj_pos:
-                        laser_traj.append(point_pos)
+                        laser_traj.append(point_pos) 
                     for point_neg in traj_neg:
                         laser_traj.append(point_neg)
-                    return laser_traj
                 elif grid[y1+1,x1]=='C' and grid[y1-1,x1]=='A':
-                    vy=abs(vy)
-                    traj=run_laser_debug(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
+                    vy=abs(vy) # if the clear block is in positive direction, laser propagates in positive
+                    traj=run_laser(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
                     traj.append((x1+vx,y1+vy)) # adding this block back in manually so it doesn't interact
                     for point in traj:
                         laser_traj.append(point)
-                    return laser_traj
                 elif grid[y1+1,x1]=='A' and grid[y1-1,x1]=='C':
-                    vy=-abs(vy)
-                    traj=run_laser_debug(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
+                    vy=-abs(vy) # if the clear block is in negative direction, laser propagates in positive
+                    traj=run_laser(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
                     traj.append((x1+vx,y1+vy)) # adding this block back in manually so it doesn't interact
                     for point in traj:
                         laser_traj.append(point)
-                    return laser_traj
 
-                    # opaque blocks are fine because they'll trigger the absorbed tag
             if vy>0: # if the laser is traveling down
                 if pos_check((x1,y1+1),grid)==True:
                     if grid[y1+1,x1]=='A':
@@ -269,8 +200,7 @@ def run_laser_debug(laser,grid):
                     elif grid[y1+1,x1]=='B': # block below is opaque
                         absorbed=True
                     elif grid[y1+1,x1]=='C':
-                        # refract_traj=run_laser(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
-                        refract_traj=run_laser_debug(((x1+vx,y1+vy),(vx,vy)),grid)
+                        refract_traj=run_laser(((x1+vx,y1+vy),(vx,vy)),grid)
                         vy=-vy
             else: # if the laser is traveling up
                 if pos_check((x1,y1-1),grid)==True:
@@ -279,13 +209,12 @@ def run_laser_debug(laser,grid):
                     elif grid[y1-1,x1]=='B': # block above is opaque
                         absorbed=True
                     elif grid[y1-1,x1]=='C':
-                        # refract_traj=run_laser(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
-                        refract_traj=run_laser_debug(((x1+vx,y1+vy),(vx,vy)),grid) 
-                        ##### maybe by adding this for the starting block conditions i don't need to skip 2 spaces anymore
-                        ##### test that later
+                        refract_traj=run_laser(((x1+vx,y1+vy),(vx,vy)),grid) 
                         vy=-vy
         else: # the block is to the left or right
             ### SANDWICH CONDITIONS
+            ### follows the same logic as the conditions above
+            ### this code could probably be condensed a lot but I can't prioritize that rn
             if pos_check((x1+1,y1),grid)==True and pos_check((x1-1,y1),grid)==True:
                 if grid[y1,x1+1]=='A' and grid[y1,x1-1]=='A':
                     return laser_traj
@@ -293,9 +222,9 @@ def run_laser_debug(laser,grid):
                     absorbed=True
                     return laser_traj
                 elif grid[y1,x1+1]=='C' and grid[y1,x1-1]=='C':
-                    traj_pos=run_laser_debug(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
+                    traj_pos=run_laser(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
                     traj_pos.append((x1+vx,y1+vy)) # adding this block back in manually so it doesn't interact
-                    traj_neg=run_laser_debug(((x1-2*vx,y1+2*vy),(-vx,vy)),grid)
+                    traj_neg=run_laser(((x1-2*vx,y1+2*vy),(-vx,vy)),grid)
                     traj_neg.append((x1+vx,y1-vy)) # adding this block back in manually so it doesn't interact
                     for point_pos in traj_pos:
                         laser_traj.append(point_pos)
@@ -304,20 +233,19 @@ def run_laser_debug(laser,grid):
                     return laser_traj
                 elif grid[y1,x1+1]=='C' and grid[y1,x1-1]=='A':
                     vx=abs(vx)
-                    traj=run_laser_debug(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
+                    traj=run_laser(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
                     traj.append((x1+vx,y1+vy)) # adding this block back in manually so it doesn't interact
                     for point in traj:
                         laser_traj.append(point)
                     return laser_traj
                 elif grid[y1,x1+1]=='A' and grid[y1,x1-1]=='C':
                     vx=-abs(vx)
-                    traj=run_laser_debug(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
+                    traj=run_laser(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
                     traj.append((x1+vx,y1+vy)) # adding this block back in manually so it doesn't interact
                     for point in traj:
                         laser_traj.append(point)
                     return laser_traj
-                    # opaque blocks are fine because they'll trigger the absorbed tag
-
+                    
             if vx>0: # if the laser is traveling right
                 if pos_check((x1+1,y1),grid)==True:
                     if grid[y1,x1+1]=='A':
@@ -326,7 +254,7 @@ def run_laser_debug(laser,grid):
                         absorbed=True
                     elif grid[y1,x1+1]=='C':
                         # refract_traj=run_laser(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
-                        refract_traj=run_laser_debug(((x1+vx,y1+vy),(vx,vy)),grid)
+                        refract_traj=run_laser(((x1+vx,y1+vy),(vx,vy)),grid)
                         vx=-vx
             else: # if the laser is traveling left
                 if pos_check((x1-1,y1),grid)==True:
@@ -336,26 +264,21 @@ def run_laser_debug(laser,grid):
                         absorbed=True
                     elif grid[y1,x1-1]=='C':
                         # refract_traj=run_laser(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
-                        refract_traj=run_laser_debug(((x1+vx,y1+vy),(vx,vy)),grid)
+                        refract_traj=run_laser(((x1+vx,y1+vy),(vx,vy)),grid)
                         vx=-vx
-    laser_traj.insert(0,(x1+vx,y1+vy))
-    x,y=laser_traj[0][0],laser_traj[0][1]
+    laser_traj.insert(0,(x1+vx,y1+vy)) # insert the first new point of the trajectory
+    x,y=laser_traj[0][0],laser_traj[0][1] # grab x and y points
+    ### now that we've handled the special cases of the laser at the origin
+    ### we can propagate the rest of the trajectory with a while loop
     
-    for point in refract_traj:
-        # print('refraction')
-        # print(point)
+    for point in refract_traj: # save any of the refracted points at the end so they don't mess up the queue
         laser_traj.append(point)        
-    ##############
 
-    refract_traj=[] # re initialize an empty array to hold the refracted points
-    x,y=laser_traj[0][0],laser_traj[0][1]
+    refract_traj=[] # re initialize an empty array to hold new refracted points
 
     counter=0 # use this to end the loop if the laser is stuck within the grid
-    # update new positions to the start of the trajectory list
-    # run as long as new position is within the grid
+    # this loop will update new positions to the start of the trajectory list
     while pos_check(laser_traj[0],grid)==True and absorbed==False and counter<limiter:
-        # print(counter)
-        # print(laser_traj[0])
         counter+=1
         ### BLOCK CONDITIONALS
         # if it hits from above or below the y dir flips
@@ -366,7 +289,7 @@ def run_laser_debug(laser,grid):
                 absorbed=True # this tag makes it so that the while loop closes
             elif grid[y+1,x]=='C':
                 # refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
-                refract_traj=run_laser_debug(((x+vx,y+vy),(vx,vy)),grid)
+                refract_traj=run_laser(((x+vx,y+vy),(vx,vy)),grid)
                 # start a new laser with the same direction to pass through
                 # have to advance the step by two so that it doesn't intersect the same block again
                 # add those points to the end so it doesn't mess up the queue
@@ -378,7 +301,7 @@ def run_laser_debug(laser,grid):
                 absorbed=True
             elif grid[y-1,x]=='C':
                 # refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
-                refract_traj=run_laser_debug(((x+vx,y+vy),(vx,vy)),grid)
+                refract_traj=run_laser(((x+vx,y+vy),(vx,vy)),grid)
                 vy=-vy
         # if it hits from left or right the x dir flips
         if pos_check((x+1,y),grid)==True:
@@ -388,7 +311,7 @@ def run_laser_debug(laser,grid):
                 absorbed=True
             elif grid[y,x+1]=='C':
                 # refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
-                refract_traj=run_laser_debug(((x+vx,y+vy),(vx,vy)),grid)
+                refract_traj=run_laser(((x+vx,y+vy),(vx,vy)),grid)
                 vx=-vx
         if pos_check((x-1,y),grid)==True:
             if grid[y,x-1]=='A':
@@ -397,7 +320,7 @@ def run_laser_debug(laser,grid):
                 absorbed=True
             elif grid[y,x-1]=='C':
                 # refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
-                refract_traj=run_laser_debug(((x+vx,y+vy),(vx,vy)),grid)
+                refract_traj=run_laser(((x+vx,y+vy),(vx,vy)),grid)
                 # have to start the new laser from 2 steps forward so it doesn't interact with C again
                 # but then we lose that point in the trajectory so I'm gonna put it back at the end
                 refract_traj.append((x+vx,y+vy))
@@ -516,7 +439,7 @@ def game_solver_tiny_5(grid,block_list,lasers,points):
         lasers_trajs=[] # initialize
         # run each laser in the puzzle
         for laser in lasers:
-            laser_traj=run_laser_debug(laser,config_grid)
+            laser_traj=run_laser(laser,config_grid)
             for point in laser_traj:
                 lasers_trajs.append(point)
         target_num=0 # initialize
