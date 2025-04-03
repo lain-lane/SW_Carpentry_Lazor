@@ -8,14 +8,13 @@ def read_bff(bff):
         bff: str
             name of file to be read
     *** Returns ***
-        rows: list, str
-            list of string of each row
-        blocks: tuple, int
-            number of A,B,C blocks respectively
+        game_grid: np array
+        blocks: list, str
+            list containing correct number of A's, B's, and C's to be placed
         lasers: list, tuple, tuple, int
             list of lasers as tuples
             each tuple contains lasers starting point (x,y) and direction (vx,vy)
-        points: list, tuple
+        points: list, tuple, int
             list of target points (x,y)
     returns(rows,blocks,lasers,points)
     '''
@@ -67,29 +66,36 @@ def read_bff(bff):
             points.append((int(lines[i].split(' ')[1]),int(lines[i].split(' ')[2])))
         else:
             pass
-    return(rows,(num_A,num_B,num_C),lasers,points)
+    def grid_reader(rows):
+        ''' interprets list of gameboard rows into xy grid as a numpy array'''
+        y_dim=len(rows)
+        x_dim=len(rows[0].split(' '))
+        grid=np.zeros((2*x_dim+1,2*y_dim+1),dtype=str)
+        # 2*length+1 to get the full size of grid including the even spaces
+        # see the handout for explanation of grid indexing
+        for j in range(x_dim):
+            for i in range(y_dim):
+                grid[2*j+1,2*i+1]=rows[i].split(' ')[j]
+                # place the symbols from the board into corresponding index of the grid
+        grid=np.transpose(grid) # inverts x and y
+        return grid
+    game_grid=grid_reader(rows)
 
-def grid_reader(rows):
-    '''
-    interprets list of gameboard rows into xy grid as a numpy array
-    *** Args 
-        rows: list, str
-            list of grid rows output from read_bff
-    *** Returns
-        grid: np array
-            xy grid with open spaces and fixed blocks marked'''
-    
-    y_dim=len(rows)
-    x_dim=len(rows[0].split(' '))
-    grid=np.zeros((2*x_dim+1,2*y_dim+1),dtype=str)
-    # 2*length+1 to get the full size of grid including the even spaces
-    # see the handout for explanation of grid indexing
-    for j in range(x_dim):
-        for i in range(y_dim):
-            grid[2*j+1,2*i+1]=rows[i].split(' ')[j]
-            # place the symbols from the board into corresponding index of the grid
-    grid=np.transpose(grid) # inverts x and y
-    return grid
+    def get_block_list(blocks):
+        ''' input (num_A,num_B,num_C), return list of A's,B's, and C's'''
+        num_A, num_B, num_C = blocks[0],blocks[1],blocks[2]
+        block_list=[]
+        for i in range(num_A):
+            block_list.append('A')
+        for i in range(num_B):
+            block_list.append('B')
+        for i in range(num_C):
+            block_list.append('C')
+        return block_list
+    blocks_list=get_block_list((num_A,num_B,num_C))
+
+    return(game_grid,blocks_list,lasers,points)
+
 
 def pos_check(point,grid):
     '''returns True if point is within the grid
@@ -211,7 +217,7 @@ def run_laser_debug(laser,grid):
 
     absorbed=False
     refract_traj=[]
-    ####### need some sort of try here for if the spaces not being in the grid
+    
     neighbors=[]
     for coords in [[y1,x1-1],[y1,x1+1],[y1-1,x1],[y1+1,x1]]:
         try:
@@ -222,21 +228,45 @@ def run_laser_debug(laser,grid):
         
     # if grid[y1,x1-1] in blocknames or grid[y1,x1+1] in blocknames or grid[y1-1,x1] in blocknames or grid[y1+1,x1] in blocknames:
     if any(grid[coord[0],coord[1]] in blocknames for coord in neighbors)==True:
-        # print('starting block detected')
-        # print(laser_traj[0])
-        if y1 % 2 ==0: # if the laser starts with a block above or below it
-            # if it's sandwiched:
+        if y1 % 2 ==0: # if the laser can start with a block above or below it
+            ### SANDWICH CONDITIONS
             if pos_check((x1,y1+1),grid)==True and pos_check((x1,y1-1),grid)==True:
                 if grid[y1+1,x1]=='A' and grid[y1-1,x1]=='A':
                     return laser_traj
-                
-                ### add conditions for sandwiched between clear blocks
-                ### opaque blocks are fine because they'll 
+                elif grid[y1+1,x1]=='B' or grid[y1-1,x1]=='B':
+                    absorbed=True
+                    return laser_traj
+                elif grid[y1+1,x1]=='C' and grid[y1-1,x1]=='C':
+                    traj_pos=run_laser_debug(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
+                    traj_pos.append((x1+vx,y1+vy)) # adding this block back in manually so it doesn't interact
+                    traj_neg=run_laser_debug(((x1+2*vx,y1-2*vy),(vx,-vy)),grid)
+                    traj_neg.append((x1+vx,y1-vy)) # adding this block back in manually so it doesn't interact
+                    for point_pos in traj_pos:
+                        laser_traj.append(point_pos)
+                    for point_neg in traj_neg:
+                        laser_traj.append(point_neg)
+                    return laser_traj
+                elif grid[y1+1,x1]=='C' and grid[y1-1,x1]=='A':
+                    vy=abs(vy)
+                    traj=run_laser_debug(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
+                    traj.append((x1+vx,y1+vy)) # adding this block back in manually so it doesn't interact
+                    for point in traj:
+                        laser_traj.append(point)
+                    return laser_traj
+                elif grid[y1+1,x1]=='A' and grid[y1-1,x1]=='C':
+                    vy=-abs(vy)
+                    traj=run_laser_debug(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
+                    traj.append((x1+vx,y1+vy)) # adding this block back in manually so it doesn't interact
+                    for point in traj:
+                        laser_traj.append(point)
+                    return laser_traj
+
+                    # opaque blocks are fine because they'll trigger the absorbed tag
             if vy>0: # if the laser is traveling down
                 if pos_check((x1,y1+1),grid)==True:
                     if grid[y1+1,x1]=='A':
                         vy=-vy
-                    elif grid[y1+1,x1]=='B': # block above is opaque
+                    elif grid[y1+1,x1]=='B': # block below is opaque
                         absorbed=True
                     elif grid[y1+1,x1]=='C':
                         # refract_traj=run_laser(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
@@ -255,12 +285,44 @@ def run_laser_debug(laser,grid):
                         ##### test that later
                         vy=-vy
         else: # the block is to the left or right
+            ### SANDWICH CONDITIONS
+            if pos_check((x1+1,y1),grid)==True and pos_check((x1-1,y1),grid)==True:
+                if grid[y1,x1+1]=='A' and grid[y1,x1-1]=='A':
+                    return laser_traj
+                elif grid[y1,x1+1]=='B' or grid[y1,x1-1]=='B':
+                    absorbed=True
+                    return laser_traj
+                elif grid[y1,x1+1]=='C' and grid[y1,x1-1]=='C':
+                    traj_pos=run_laser_debug(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
+                    traj_pos.append((x1+vx,y1+vy)) # adding this block back in manually so it doesn't interact
+                    traj_neg=run_laser_debug(((x1-2*vx,y1+2*vy),(-vx,vy)),grid)
+                    traj_neg.append((x1+vx,y1-vy)) # adding this block back in manually so it doesn't interact
+                    for point_pos in traj_pos:
+                        laser_traj.append(point_pos)
+                    for point_neg in traj_neg:
+                        laser_traj.append(point_neg)
+                    return laser_traj
+                elif grid[y1,x1+1]=='C' and grid[y1,x1-1]=='A':
+                    vx=abs(vx)
+                    traj=run_laser_debug(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
+                    traj.append((x1+vx,y1+vy)) # adding this block back in manually so it doesn't interact
+                    for point in traj:
+                        laser_traj.append(point)
+                    return laser_traj
+                elif grid[y1,x1+1]=='A' and grid[y1,x1-1]=='C':
+                    vx=-abs(vx)
+                    traj=run_laser_debug(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
+                    traj.append((x1+vx,y1+vy)) # adding this block back in manually so it doesn't interact
+                    for point in traj:
+                        laser_traj.append(point)
+                    return laser_traj
+                    # opaque blocks are fine because they'll trigger the absorbed tag
 
             if vx>0: # if the laser is traveling right
                 if pos_check((x1+1,y1),grid)==True:
                     if grid[y1,x1+1]=='A':
                         vx=-vx
-                    elif grid[y1,x1+1]=='B': # block above is opaque
+                    elif grid[y1,x1+1]=='B': 
                         absorbed=True
                     elif grid[y1,x1+1]=='C':
                         # refract_traj=run_laser(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
@@ -270,7 +332,7 @@ def run_laser_debug(laser,grid):
                 if pos_check((x1-1,y1),grid)==True:
                     if grid[y1,x1-1]=='A':
                         vx=-vx
-                    elif grid[y1,x1-1]=='B': # block above is opaque
+                    elif grid[y1,x1-1]=='B': 
                         absorbed=True
                     elif grid[y1,x1-1]=='C':
                         # refract_traj=run_laser(((x1+2*vx,y1+2*vy),(vx,vy)),grid)
@@ -280,8 +342,8 @@ def run_laser_debug(laser,grid):
     x,y=laser_traj[0][0],laser_traj[0][1]
     
     for point in refract_traj:
-        print('refraction')
-        print(point)
+        # print('refraction')
+        # print(point)
         laser_traj.append(point)        
     ##############
 
@@ -301,7 +363,6 @@ def run_laser_debug(laser,grid):
             if grid[y+1,x]=='A':
                 vy=-vy
             elif grid[y+1,x]=='B': # opaque
-                print('below')
                 absorbed=True # this tag makes it so that the while loop closes
             elif grid[y+1,x]=='C':
                 # refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
@@ -314,7 +375,6 @@ def run_laser_debug(laser,grid):
             if grid[y-1,x]=='A':
                 vy=-vy
             elif grid[y-1,x]=='B':
-                print('above')
                 absorbed=True
             elif grid[y-1,x]=='C':
                 # refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
@@ -325,7 +385,6 @@ def run_laser_debug(laser,grid):
             if grid[y,x+1]=='A':
                 vx=-vx
             elif grid[y,x+1]=='B':
-                print('right')
                 absorbed=True
             elif grid[y,x+1]=='C':
                 # refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
@@ -335,7 +394,6 @@ def run_laser_debug(laser,grid):
             if grid[y,x-1]=='A':
                 vx=-vx 
             elif grid[y,x-1]=='B':
-                print('left')
                 absorbed=True
             elif grid[y,x-1]=='C':
                 # refract_traj=run_laser(((x+2*vx,y+2*vy),(vx,vy)),grid)
@@ -347,12 +405,9 @@ def run_laser_debug(laser,grid):
 
         laser_traj.insert(0,(x+vx,y+vy))
         x,y=laser_traj[0][0],laser_traj[0][1]
-
     # have to delete the last new point that broke the loop
     del laser_traj[0]
     for point in refract_traj:
-        print('refraction')
-        print(point)
         laser_traj.append(point)
     return(laser_traj)
 
@@ -371,8 +426,8 @@ def get_open(grid):
     return open_spaces
 
 def get_configs(grid,blocks):
-    # this needs to be done with some kind of recursion iterating through the blocks_list 
-    # (see how it works for tiny_5)
+    ### this needs to be done with some kind of recursion iterating through the blocks_list 
+    ### (see how it works for tiny_5)
     grid_orig=grid
     blocks_list=blocks
     configs=[]
@@ -384,31 +439,12 @@ def get_configs(grid,blocks):
             blocks.pop(0)
     return
 
-def get_block_list(blocks):
-    '''
-    ***Args
-        blocks: tuple, int
-            (num_A,num_B,num_C)
-    ***Returns
-        block_list: list, str
-            list containing amount of A's,B's, and C's'''
-    num_A, num_B, num_C = blocks[0],blocks[1],blocks[2]
-    block_list=[]
-    for i in range(num_A):
-        block_list.append('A')
-    for i in range(num_B):
-        block_list.append('B')
-    for i in range(num_C):
-        block_list.append('C')
-    return block_list
-
 def get_configs_tiny_5_debug(grid,block_list):
     # gonna write a script to solve one puzzle in particular to help understand the problem in general
     # i think this is working now but it returns a list of nested lists instead of numpy arrays
     # so i'll need to convert back to array before feeding it to run laser
     configs=[]
     grid_place=grid
-    # print(get_open(grid))
     for space_0 in get_open(grid_place):
         grid_place[space_0[0],space_0[1]]=block_list[0]
         # print('0')
@@ -462,24 +498,37 @@ def get_configs_tiny_5(grid,block_list):
             configs_stripped.append(config)
     return configs_stripped
 
-def game_solver_tiny_5(grid,blocks,lasers,points):
-    block_list=get_block_list(blocks)
-    configs=get_configs_tiny_5_debug(grid,block_list)
+def game_solver_tiny_5(grid,block_list,lasers,points):
+    ''' finds configuration which hits all target points
+    ***Args: all are outputs from the bff reader function
+        grid: np array
+        block_list: list, str
+        lasers: list, tuple, tuple, int
+        points: list, tuple, int'''
+    configs=get_configs_tiny_5_debug(grid,block_list) # use function to get possible configs
     counter=0
+    solved_grid=np.zeros(np.shape(grid)) # initialize
+    # we will iterate through the different configs and save the one that works
     for config in configs:
         print(counter)
         counter+=1
-        config_grid=np.array(config)
-        lasers_trajs=[]
+        config_grid=np.array(config) # remember that the configs returns a list of lists, we need to get back to np array
+        lasers_trajs=[] # initialize
+        # run each laser in the puzzle
         for laser in lasers:
-            print('running laser')
             laser_traj=run_laser_debug(laser,config_grid)
-            lasers_trajs.append(laser_traj)
-            print('laser ran')
-        if all(point in lasers_trajs for point in points)==True:
+            for point in laser_traj:
+                lasers_trajs.append(point)
+        target_num=0 # initialize
+        for target in points:
+            if target in lasers_trajs:
+                target_num+=1 # increase the number for each point that gets hit
+                # could try to redo this with the all function but right now it's working so let's just be happy about that
+        if target_num==len(points): # if we hit all the points we save the solved grid and break the loop
             solved_grid=config_grid
             break
-        print('config failed')
+    if solved_grid.all()==np.zeros(np.shape(grid)).all():
+        print('Solver failed! :(')
     return solved_grid, lasers_trajs
 
 def game_plotter(laser_traj,grid,points):
@@ -527,25 +576,16 @@ def game_plotter(laser_traj,grid,points):
     plt.show()
 
 if __name__=="__main__":
-    rows,blocks,lasers,points=read_bff('bff_files/tiny_5.bff')
-    grid=grid_reader(rows)
-    
-    # traj=run_laser(lasers[0],grid)
+    grid,blocks_list,lasers,points=read_bff('bff_files/tiny_5.bff')
 
-    # game_plotter(traj,grid,points)
+    print(grid)
     
-    # print(grid)
-    # print(get_open(grid))
+    solution,trajs=game_solver_tiny_5(grid,blocks_list,lasers,points)
+    print(solution)
+    game_plotter(trajs,solution,points)
+   
     
-    # print(get_configs_tiny_5_debug(grid,get_block_list(blocks)))
-    configs=get_configs_tiny_5_debug(grid,get_block_list(blocks))
-    # solution,trajs=game_solver_tiny_5(grid,blocks,lasers,points)
-    
-    config_grid=np.array(configs[69])
-    print(config_grid)
-    run_laser_debug(lasers[0],config_grid)
-    # print(traj)
-    # game_plotter(trajs,solution,points)
+
     
     
     
