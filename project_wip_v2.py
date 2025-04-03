@@ -16,7 +16,7 @@ def read_bff(bff):
             each tuple contains lasers starting point (x,y) and direction (vx,vy)
         points: list, tuple, int
             list of target points (x,y)
-    returns(rows,blocks,lasers,points)
+    returns(game_grid,blocks,lasers,points)
     '''
     f=open(bff).read().strip().split('\n')
     # opening and reading the file
@@ -348,19 +348,44 @@ def get_open(grid):
                 open_spaces.append((i,j))
     return open_spaces
 
-def get_configs(grid,blocks):
+def get_configs_wip(grid,blocks):
     ### this needs to be done with some kind of recursion iterating through the blocks_list 
     ### (see how it works for tiny_5)
-    grid_orig=grid
-    blocks_list=blocks
+
+    ######## THIS IS BROKEN RN
+    ####### i think that the problem has to do with the 'space' variable being the same every time it is called
+    ###### when i was coding for tiny_5 i had to change the name of the variable in each loop to make it work
     configs=[]
-    def block_placer(grid,blocks):
-        while blocks!=[]:
+    
+    if len(blocks)>len(get_open(grid)):
+        ### put some raise error here for too many blocks
+        return
+
+    def config_iteration(grid,iter):
+        if iter==len(blocks)-1: # this makes it so that we only save the configurations in the last iteration
             for space in get_open(grid):
-                grid[space[0],space[1]]=blocks[0]
-                configs.append(grid)
-            blocks.pop(0)
-    return
+                grid[space[0],[1]]=blocks[iter] # place the block in an open space
+                print(grid)
+                grid_list=grid.tolist() # convert to list to avoid problems with np datatypes
+                configs.append(grid_list) # save that placement to the list of possible configurations
+                grid[space[0],[1]]=='o' # remove the block so it can be placed in the next open space
+            return
+        else:
+            for space in get_open(grid):
+                grid[space[0],[1]]=blocks[iter]
+                config_iteration(grid,iter+1)
+                grid[space[0],[1]]=='o'
+
+    config_iteration(grid,0)
+
+    configs_stripped=[]
+    for config in configs:
+        if config not in configs_stripped:
+            configs_stripped.append(config)
+    return configs_stripped
+
+
+
 
 def get_configs_tiny_5_debug(grid,block_list):
     # gonna write a script to solve one puzzle in particular to help understand the problem in general
@@ -503,9 +528,17 @@ if __name__=="__main__":
 
     print(grid)
     
-    solution,trajs=game_solver_tiny_5(grid,blocks_list,lasers,points)
-    print(solution)
-    game_plotter(trajs,solution,points)
+    # solution,trajs=game_solver_tiny_5(grid,blocks_list,lasers,points)
+    # print(solution)
+    # game_plotter(trajs,solution,points)
+
+    configs_looped=get_configs_tiny_5_debug(grid,blocks_list)
+    configs_iter=get_configs_wip(grid,blocks_list)
+    print(len(configs_looped))
+    print(len(configs_iter))
+
+    for config in configs_iter:
+        print(np.array(config))
    
     
 
