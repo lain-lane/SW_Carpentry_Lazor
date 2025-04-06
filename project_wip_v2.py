@@ -1,5 +1,6 @@
 import numpy as np 
 import matplotlib.pyplot as plt
+import time
 
 def read_bff(bff):
     ''' 
@@ -9,14 +10,14 @@ def read_bff(bff):
             name of file to be read
     *** Returns ***
         game_grid: np array
-        blocks: list, str
-            list containing correct number of A's, B's, and C's to be placed
+        num_blocks: tuple, int
+            (num_A,num_B,num_C) to be placed
         lasers: list, tuple, tuple, int
             list of lasers as tuples
             each tuple contains lasers starting point (x,y) and direction (vx,vy)
         points: list, tuple, int
             list of target points (x,y)
-    returns(game_grid,blocks,lasers,points)
+    returns(game_grid,num_blocks,lasers,points)
     '''
     f=open(bff).read().strip().split('\n')
     # opening and reading the file
@@ -70,14 +71,13 @@ def read_bff(bff):
         ''' interprets list of gameboard rows into xy grid as a numpy array'''
         y_dim=len(rows)
         x_dim=len(rows[0].split(' '))
-        grid=np.zeros((2*x_dim+1,2*y_dim+1),dtype=str)
+        grid=np.zeros((2*y_dim+1,2*x_dim+1),dtype=str)
         # 2*length+1 to get the full size of grid including the even spaces
         # see the handout for explanation of grid indexing
-        for j in range(x_dim):
-            for i in range(y_dim):
-                grid[2*j+1,2*i+1]=rows[i].split(' ')[j]
+        for j in range(y_dim):
+            for i in range(x_dim):
+                grid[2*j+1,2*i+1]=rows[j].split(' ')[i]
                 # place the symbols from the board into corresponding index of the grid
-        grid=np.transpose(grid) # inverts x and y
         return grid
     game_grid=grid_reader(rows)
 
@@ -92,10 +92,20 @@ def read_bff(bff):
         for i in range(num_C):
             block_list.append('C')
         return block_list
-    blocks_list=get_block_list((num_A,num_B,num_C))
 
-    return(game_grid,blocks_list,lasers,points)
+    return(game_grid,(num_A,num_B,num_C),lasers,points)
 
+def get_block_list(blocks):
+    ''' input (num_A,num_B,num_C), return list of A's,B's, and C's'''
+    num_A, num_B, num_C = blocks[0],blocks[1],blocks[2]
+    block_list=[]
+    for i in range(num_A):
+        block_list.append('A')
+    for i in range(num_B):
+        block_list.append('B')
+    for i in range(num_C):
+        block_list.append('C')
+    return block_list
 
 def pos_check(point,grid):
     '''returns True if point is within the grid
@@ -108,10 +118,10 @@ def pos_check(point,grid):
         bool
             True if point is within the grid, else False
             '''
-    x_dim,y_dim = np.shape(grid)[0], np.shape(grid)[1]
-    if point[1]<0 or point[1]>x_dim-1:
+    x_dim,y_dim = np.shape(grid)[1], np.shape(grid)[0]
+    if point[0]<0 or point[0]>x_dim-1:
         return False
-    elif point[0]<0 or point[0]>y_dim-1:
+    elif point[1]<0 or point[1]>y_dim-1:
         return False
     else:
         return True
@@ -342,18 +352,91 @@ def get_open(grid):
         open_spaces: list, tuple, int
             IMPORTANT: returns coords as yx in same order as numpy indexing'''
     open_spaces=[]
-    x_dim,y_dim = np.shape(grid)[0], np.shape(grid)[1]
+    x_dim,y_dim = np.shape(grid)[1], np.shape(grid)[0]
     for i in range(x_dim):
         for j in range(y_dim):
-            if grid[i,j]=='o':
+            if grid[j,i]=='o':
                 open_spaces.append((i,j))
     return open_spaces
 
-def get_configs(grid,blocks):
+def get_configs_v2(grid,num_blocks):
+    ##### TRYING A NEW STRATEGY TO TRY TO MAKE ITERATION FASTER
+    ##### iterate through each space in the grid and update the possible choices 
+    ##### (remove a block as a choice when the number exceeds the number input)
+    '''
+    Args: num_blocks tuple (num_A,num_B,num_C)'''
+    configs=[] # intialize
+    opens=get_open(grid)
+    final_A,final_B,final_C=num_blocks[0],num_blocks[1],num_blocks[2]
+    final_O=len(opens)-final_A-final_B-final_C # num of open blocks we need in the final puzzle
+    final_nums=[final_A,final_B,final_C,final_O]
 
-    ###### THIS WORKS FOR TINY_5 AND SHOWSTOPPER_4
-    ###### HAVEN'T TRIED ON OTHERS
-    print('getting configs')
+    def get_choices(grid):
+        num_A,num_B,num_C,num_O=0,0,0,0 # initialize
+        x_dim,y_dim = np.shape(grid)[1], np.shape(grid)[0]
+        for i in range(x_dim): # go through the grid and count each type
+            for j in range(y_dim):
+                if grid[j,i]=='A':
+                    num_A+=1
+                elif grid[j,i]=='B':
+                    num_B+=1
+                elif grid[j,i]=='C':
+                    num_C+=1
+                elif grid[j,i]=='0': # the 0 represents a space being intentionally left open (as opposed to 'o' being unvistited)
+                    num_O+=1
+        choices=[] # initialize
+        for k in range(len(['A','B','C','0'])):
+            if [num_A,num_B,num_C,num_O][k]<[final_A,final_B,final_C,final_O][k]:
+                choices.append([final_A,final_B,final_C,final_O][k])
+        return choices
+    
+    poss_choices=['A','B','C','O']
+    def get_choices_new(num_list):
+        choices=[] # initialize
+        for k in range(len(poss_choices)):
+            if num_list[k]<final_nums[k]:
+                choices.append(poss_choices[k])
+        return choices
+
+    def config_iter_v2(num_list,iter):
+        if iter==len(opens)-1: # this makes it so that we only save the configurations in the last iteration
+            choices=get_choices_new(num_list)
+            for c2 in range(len(choices)):
+                for k in range(len(poss_choices)):
+                    if choices[c2]==poss_choices[k]:
+                        num_list[k]+=1
+                        break
+                space=opens[iter]
+                grid[space[1],space[0]]=choices[c2] # place the block in an open space
+                # print(grid)
+                grid_list=grid.tolist() # convert to list to avoid problems with np datatypes
+                if grid_list not in configs:
+                    configs.append(grid_list) # save that placement to the list of possible configurations
+                num_list[k]+=-1
+        else:
+            choices=get_choices_new(num_list)
+            for c1 in range(len(choices)):
+                for k in range(len(poss_choices)):
+                    if choices[c1]==poss_choices[k]:
+                        num_list[k]+=1
+                        break
+                space=opens[iter]
+                grid[space[1],space[0]]=choices[c1]
+                config_iter_v2(num_list,iter+1)
+                num_list[k]+=-1
+        return
+    
+    num_list=[0,0,0,0] # initialize with no choices made yet
+    config_iter_v2(num_list,0)
+
+    # assert num_list==final_nums
+
+    return configs
+
+
+def get_configs(grid,blocks):
+    ''' have to input list of blocks not number of blocks'''
+    # print('getting possible board configs (this may take a while)')
     configs=[]
     
     if len(blocks)>len(get_open(grid)):
@@ -365,61 +448,64 @@ def get_configs(grid,blocks):
             opens=get_open(grid)
             for i in range(len(opens)):
                 space=opens[i]
-                grid[space[0],space[1]]=blocks[iter] # place the block in an open space
+                grid[space[1],space[0]]=blocks[iter] # place the block in an open space
                 grid_list=grid.tolist() # convert to list to avoid problems with np datatypes
-                configs.append(grid_list) # save that placement to the list of possible configurations
-                print(len(configs))
-                grid[space[0],space[1]]='o' # remove the block so it can be placed in the next open space
+                if grid_list not in configs:
+                    configs.append(grid_list) # save that placement to the list of possible configurations
+                grid[space[1],space[0]]='o' # remove the block so it can be placed in the next open space
             return
         else:
             opens=get_open(grid)
             for i in range(len(opens)):
                 space=opens[i]
-                grid[space[0],space[1]]=blocks[iter]
+                grid[space[1],space[0]]=blocks[iter]
                 config_iteration(grid,iter+1)
-                grid[space[0],space[1]]='o'
+                grid[space[1],space[0]]='o'
 
     config_iteration(grid,0)
 
-    ### maybe this can be sped up by checking it within the iteration so it has fewer to compare it to 
-    ### because this is taking way too long to run
-    configs_stripped=[]
-    for config in configs:
-        print('stripping')
-        print(len(configs_stripped))
-        if config not in configs_stripped:
-            configs_stripped.append(config)
-    return configs_stripped
+    return configs
 
-
-def get_configs_tiny_5(grid,block_list):
-    # gonna write a script to solve one puzzle in particular to help understand the problem in general
-    # returns a list of nested lists because the numpy dtype was giving us trouble
-    # so i'll need to convert back to array before feeding it to run laser
-    configs=[]
-    for space_0 in get_open(grid):
-        grid[space_0[0],space_0[1]]=block_list[0]
-        for space_1 in get_open(grid):
-            grid[space_1[0],space_1[1]]=block_list[1]
-            for space_2 in get_open(grid):
-                grid[space_2[0],space_2[1]]=block_list[2]
-                for space_3 in get_open(grid):
-                    grid[space_3[0],space_3[1]]=block_list[3]    
-                    grid_ls=grid.tolist()
-                    configs.append(grid_ls)
-                    grid[space_3[0],space_3[1]]='o'
-                grid[space_2[0],space_2[1]]='o'
-            grid[space_1[0],space_1[1]]='o'
-        grid[space_0[0],space_0[1]]='o'
+def game_solver_v2(grid,num_blocks,lasers,points):
+    ### CORRECTLY SOLVES TINY-5 AND SHOWSTOPPER-4
+    ### CORRECLTY SOLVED NUMBERED-6 BUT IT TOOK 6 MINUTES
+    ### FAILED ON DARK-1
     
-    configs_stripped=[]
+    ''' finds configuration which hits all target points
+    ***Args: all are outputs from the bff reader function
+        grid: np array
+        block_list: list, str
+        lasers: list, tuple, tuple, int
+        points: list, tuple, int'''
+    
+    configs=get_configs_v2(grid,num_blocks) # use function to get possible configs
+    counter=0
+    # we will iterate through the different configs and save the one that works
+    print('testing board configurations')
     for config in configs:
-        if config not in configs_stripped:
-            configs_stripped.append(config)
-    return configs_stripped
+        counter+=1
+        config_grid=np.array(config) # remember that the configs returns a list of lists, we need to get back to np array
+        lasers_trajs=[] # initialize
+        # run each laser in the puzzle
+        for laser in lasers:
+            laser_traj=run_laser(laser,config_grid)
+            for point in laser_traj:
+                lasers_trajs.append(point)
+        target_num=0 # initialize
+        for target in points:
+            if target in lasers_trajs:
+                target_num+=1 # increase the number for each point that gets hit
+                # could try to redo this with the all function but right now it's working so let's just be happy about that
+        if target_num==len(points): # if we hit all the points we save the solved grid and break the loop
+            print('Solved!')
+            solved_grid=config_grid
+            return solved_grid, lasers_trajs
+    print('Solver failed')
+    return 
 
 def game_solver(grid,block_list,lasers,points):
     ### CORRECTLY SOLVES TINY-5 AND SHOWSTOPPER-4
+    ### CORRECLTY SOLVED NUMBERED-6 BUT IT TOOK 6 MINUTES
     ### FAILED ON DARK-1
     
     ''' finds configuration which hits all target points
@@ -431,11 +517,9 @@ def game_solver(grid,block_list,lasers,points):
     
     configs=get_configs(grid,block_list) # use function to get possible configs
     counter=0
-    solved_grid=np.zeros(np.shape(grid)) # initialize
     # we will iterate through the different configs and save the one that works
+    print('testing board configurations')
     for config in configs:
-        print('solving')
-        print(counter)
         counter+=1
         config_grid=np.array(config) # remember that the configs returns a list of lists, we need to get back to np array
         lasers_trajs=[] # initialize
@@ -473,7 +557,7 @@ def game_plotter(laser_traj,grid,points):
             points: list, tuple, int
                 list of target coords '''
     
-    x_dim,y_dim = np.shape(grid)[0], np.shape(grid)[1]
+    x_dim,y_dim = np.shape(grid)[1], np.shape(grid)[0]
 
     for i in range(x_dim):
         for j in range(y_dim):
@@ -501,11 +585,46 @@ def game_plotter(laser_traj,grid,points):
     plt.show()
 
 if __name__=="__main__":
-    grid,blocks,lasers,points=read_bff('bff_files/numbered_6.bff')
-    
-    solution,trajs=game_solver(grid,blocks,lasers,points)
+    filename='tiny_5.bff'
+    grid,num_blocks,lasers,points=read_bff('bff_files/'+filename)
+    solution,trajs=game_solver(grid,get_block_list(num_blocks),lasers,points)
     print(solution)
+
+    grid,num_blocks,lasers,points=read_bff('bff_files/'+filename)
+    solution,trajs=game_solver_v2(grid,num_blocks,lasers,points)
+    print(solution)
+
     game_plotter(trajs,solution,points)
+
+    ### FOR TESTING CONFIGS
+    # start_time=time.time()
+    # new_configs=get_configs_v2(grid,num_blocks)
+    # print('new minutes to configs')
+    # print((time.time()-start_time)/60)
+
+
+    # grid,num_blocks,lasers,points=read_bff('bff_files/'+filename)
+    # start_time=time.time()
+    # orig_configs=get_configs(grid,get_block_list(num_blocks))
+    # print('orig minutes to configs')
+    # print((time.time()-start_time)/60)
+
+
+    # print(len(orig_configs))
+    # print(len(new_configs))
+
+    # configs=get_configs_v2(grid,num_blocks)
+    # for config in configs:
+    #     print(np.array(config))
+    
+    # ### BROKEN
+    # test_grid=np.array(configs[1]) # this one is broken so keep checking this
+    # lasers_trajs=[]
+    # for laser in lasers:
+    #     laser_traj=run_laser(laser,test_grid)
+    #     for point in laser_traj:
+    #         lasers_trajs.append(point)
+    # game_plotter(lasers_trajs,test_grid,points)
 
 
 
