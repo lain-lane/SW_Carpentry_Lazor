@@ -41,7 +41,9 @@ def read_bff(bff):
         if lines[i]=="GRID START":
             # if we read GRID START then we will loop through the subsequent lines that represent the grid rows
             for j in range (i+1,len(lines)):
-                if lines[j]=="GRID STOP":
+                if lines[j]=='\n':
+                    pass # hopefully this makes it robust against extra lines in the grid
+                elif lines[j]=="GRID STOP":
                     break
                 else:
                     rows.append(lines[j])
@@ -460,34 +462,32 @@ def write_solution(solution,boardname):
 
 if __name__=="__main__":
     
-    boardname='dark_1'
-    grid,num_blocks,lasers,points=read_bff('bff_files/'+boardname+'.bff')
+    # boardname='dark_1'
+    # grid,num_blocks,lasers,points=read_bff('bff_files/'+boardname+'.bff')
 
 
-    ## TESTING SOLVE
-    start_time=time.time()
-    solution,trajs=game_solver(grid,num_blocks,lasers,points)
-    print((time.time()-start_time)/60)
-    game_plotter(trajs,solution,points,boardname+'_solved.png')
+    # ## TESTING SOLVE
+    # start_time=time.time()
+    # solution,trajs=game_solver(grid,num_blocks,lasers,points)
+    # print((time.time()-start_time)/60)
+    # game_plotter(trajs,solution,points,boardname+'_solved.png')
 
-    write_solution(solution,boardname)
+    # write_solution(solution,boardname)
     
+    # grid,num_blocks,lasers,points=read_bff('dark_1_solved.bff')
+    # print(grid)
 
-
-    
-
-
-
-
-    
-
-    
-    
-    
-    
-    
     
 
 
 
+
+    
+
+    
+    
+    
+    
+    
+    
 
