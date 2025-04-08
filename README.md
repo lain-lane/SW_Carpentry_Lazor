@@ -19,7 +19,7 @@ The program is split into different files, each doing a specific job to solve th
 ## How to Use
 Here’s how to play with this solver:
 
-1. **Set Up a Puzzle**: Make a `.bff` file for your puzzle (see the course handout for the format). It needs the grid, blocks, lasers, and targets.
+1. **Set Up a Puzzle**: Make a `.bff` file for your puzzle (see the course handout for the format). It needs the grid, blocks, lasers, and targets. The code is designed in such a way that you can upload the file into bff_files directory and the code will automatically look for the file, there's no need to specify the name anywhere.
 2. **Run the Solver**: 
    - **Easy Way**: Put your `.bff` file in the `bff_files` folder, run `python solver.py`, and it’ll solve all `.bff` files there. If it works, check the `solution` folder for a new `.bff` file and picture.
    - **Manual Way**: Use `LazorConfig` to read the `.bff` file into parts (grid, blocks, lasers, targets). Feed those into `GridBuilder` and `LightPath` to solve it step-by-step. Save with `export_solution`.
