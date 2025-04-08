@@ -28,7 +28,7 @@ Here’s how to play with this solver:
 ### Example
 Put `my_puzzle.bff` in `bff_files`, run `python solver.py`, and look in `solution` for `my_puzzle_solution.bff` and `my_puzzle_solution.png`. Done!
 
-##Expected Output - 
+## Expected Output - 
 
 The output files contain .bff file and the .png files per each input file. The .png files are grid representation of the final configuration, and the .bff file is the solved file, which again can be reparsed through the code and it works. 
 
