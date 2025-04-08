@@ -103,9 +103,26 @@ def read_bff(bff):
         return grid
     game_grid=grid_reader(rows)
 
+    # check that there is an appropriate number of blocks for the grid
     opens=solver.get_open(game_grid)
     if len(opens)<num_A+num_B+num_C:
         raise Exception('Board read error - too many blocks detected')
+    
+    # checks position of points (cannot be placed on corners where both indices are even or block spaces where both indices are odd)
+    for point in points:
+        if point[0]%2==0 and point[1]%2==0:
+            raise Exception('Board read error - invalid target points')
+        elif point[0]%2!=0 and point[1]%2!=0:
+            raise Exception('Board read error - invalid target points')
+        
+    # check that lasers have valid starting points and directions
+    for laser in lasers:
+        if laser[0][0]%2==0 and laser[0][1]%2==0:
+            raise Exception('Board read error - invalid laser position')
+        elif laser[0][0]%2!=0 and laser[0][1]%2!=0:
+            raise Exception('Board read error - invalid laser position')
+        if abs(laser[1][0])!=1 or abs(laser[1][1])!=1:
+            raise Exception('Board read error - invalid laser direction')
 
 
     return(game_grid,(num_A,num_B,num_C),lasers,points)
