@@ -37,6 +37,18 @@ class TestGetOpens(unittest.TestCase):
         self.assertTrue(space[0]==2 and space[1]==1)
         # testing that it gets the xy values correct
 
+class TestGetConfigs(unittest.TestCase):
+    def test_1(self):
+        grid=np.array([['o','o']])
+        configs=solver.get_configs(grid,(1,1,0))
+        self.assertTrue(len(configs)==2)
+        # should be 2 configs (A,B or B,A)
+
+    def test_2(self):
+        grid=np.array([['o','o'],['B','o']])
+        configs=solver.get_configs(grid,(0,0,1))
+        self.assertTrue(len(configs)==3)
+        # should be 3 configs (C placed in any of the three opens)
 
 if __name__=='__main__':
     unittest.main()
