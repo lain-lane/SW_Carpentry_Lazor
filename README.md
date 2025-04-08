@@ -30,4 +30,4 @@ Put `my_puzzle.bff` in `bff_files`, run `python solver.py`, and look in `solutio
 
 ## Notes
 - The solver guesses block positions randomly, so it might take a few tries (or 500,000!) for tough puzzles.
-- Run `python new_solver.py` to test everything—8 passing tests mean it’s working great!
+- Run `python test_lazor_solver.py` to test everything—8 passing tests mean it’s working great!
