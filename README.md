@@ -31,3 +31,4 @@ Put `my_puzzle.bff` in `bff_files`, run `python solver.py`, and look in `solutio
 ## Notes
 - The solver guesses block positions randomly, so it might take a few tries (or 500,000!) for tough puzzles.
 - Run `python test_lazor_solver.py` to test everything—8 passing tests mean it’s working great!
+- And last but not least, for emojis, we used this site from where you can copy the emojis and use them for nicer output view in terminal or command line - https://carpedm20.github.io/emoji/
