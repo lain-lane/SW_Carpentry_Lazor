@@ -1,11 +1,38 @@
 # SW_Carpentry_Lazor
-Midterm Lazor Project for SW Carpentry course spring 2025
+Midterm Lazor Project for SW Carpentry Course, Spring 2025
 
-# How to Use:
-Configure a level from the game into the appropriate board file format (see handout for explanation).
-Use the read_bff function from the reader module to convert a bff to the arguments game_grid, num_blocks, lasers, points.
-Input these args into the game_solver function from the solver module. game_solver returns **solution**: the solved grid as a numpy array and **lasers_trajs**: a list of all points hit by lasers. 
-To visualize the solution in matplotlib, use the game_plotter function from the solver module. Input the **lasers_trajs** and **solution** from the game_solver along with the points that were read earlier. You can also specify a savename if you wish to save the image. 
+## What This Project Does
+This is a Python program that solves a puzzle game called "Lazors." In the game, you have a grid with lasers, targets (points the lasers need to hit), and blocks you can place. The goal is to position the blocks so the lasers bounce or pass through to hit all the targets. This repo reads puzzle files (.bff format), figures out where to put the blocks, tracks the laser paths, and shows you the solution—both as a file and a picture!
 
-Alternatively you can use solve_bff to get the solution and trajectories directly from the bff file. Then you can use write_solution from the solver module to write the solved positions of the blocks to a text file. 
+## How It Works
+The program is split into different files, each doing a specific job to solve the puzzle. Here’s what each file does in simple terms:
 
+- **block.py**: Figures out what happens when a laser hits a block. There are three types: `A` bounces the laser (like a mirror), `B` stops it (like a wall), `C` bounces and lets it pass (like a half-mirror). It decides: “Bounce? Keep going? Both?”
+- **grid.py**: The grid master! It takes the game board, finds empty spots for blocks, randomly places them (like `A`, `B`, `C`), and makes a bigger “mesh” grid so lasers can move between blocks.
+- **exporter.py**: Saves the solution once solved. It writes the grid to a new `.bff` file and makes a picture (`.png`) with colors: blue for `A`, black for `B`, orange for `C`.
+- **config.py**: Reads the `.bff` puzzle file and grabs the grid layout, block counts, laser starts, directions, and targets.
+- **__init__.py**: A welcome sign for the program, listing the main tools so other files can use them easily.
+- **lightpath.py**: Tracks the laser’s journey—where it starts, how it moves, and what happens when it hits blocks (bouncing, splitting, or stopping).
+- **new_solver.py**: The testing file. Runs 8 mini-tests to check if everything works (e.g., “Does the grid load? Do lasers hit targets?”). All tests passing means it’s good!
+- **solver.py**: The brain! Takes a `.bff` file, tries tons of random block placements (up to 500,000 tries), checks if lasers hit all targets, and saves the solution.
+
+## How to Use
+Here’s how to play with this solver:
+
+1. **Set Up a Puzzle**: Make a `.bff` file for your puzzle (see the course handout for the format). It needs the grid, blocks, lasers, and targets. The code is designed in such a way that you can upload the file into bff_files directory and the code will automatically look for the file, there's no need to specify the name anywhere.
+2. **Run the Solver**: 
+   - **Easy Way**: Put your `.bff` file in the `bff_files` folder, run `python solver.py`, and it’ll solve all `.bff` files there. If it works, check the `solution` folder for a new `.bff` file and picture.
+   - **Manual Way**: Use `LazorConfig` to read the `.bff` file into parts (grid, blocks, lasers, targets). Feed those into `GridBuilder` and `LightPath` to solve it step-by-step. Save with `export_solution`.
+3. **See the Solution**: Open the `.png` file to see the grid with blocks, or check the new `.bff` file for the solved layout.
+
+### Example
+Put `my_puzzle.bff` in `bff_files`, run `python solver.py`, and look in `solution` for `my_puzzle_solution.bff` and `my_puzzle_solution.png`. Done!
+
+## Expected Output - 
+
+The output files contain .bff file and the .png files per each input file. The .png files are grid representation of the final configuration, and the .bff file is the solved file, which again can be reparsed through the code and it works. 
+
+## Notes
+- The solver guesses block positions randomly, so it might take a few tries (or 500,000!) for tough puzzles.
+- Run `python test_lazor_solver.py` to test everything—8 passing tests mean it’s working great!
+- And last but not least, for emojis, we used this site from where you can copy the emojis and use them for nicer output view in terminal or command line - https://carpedm20.github.io/emoji/
